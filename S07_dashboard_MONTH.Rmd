@@ -1,0 +1,801 @@
+---
+title: ""
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+---
+
+```{r setup, include = FALSE}
+pkgCheck <- function(packages){
+    for(x in packages){
+        try(if (!require(x, character.only = TRUE)){
+            install.packages(x, dependencies = TRUE)
+            if(!require(x, character.only = TRUE)) {
+                stop()
+            }
+        })
+    }
+}
+pkgCheck(c("flexdashboard", "ggplot2", "gridExtra"))
+files <- list.files(pattern = "^(salleElevage_)(.)*(csv)$")
+numSensors <- 8
+bdd <- lapply(files, function(myFile){
+	read.table(myFile, header = TRUE, sep = ";", dec = ".")
+})
+bdd <- do.call(rbind, bdd)
+bdd$dateTime <- as.POSIXlt(
+  paste0(bdd$year, "-", 
+         bdd$month, "-", 
+         bdd$day, " ", 
+         bdd$hour, ":", 
+         bdd$minute, ":", 
+         bdd$second))
+bdd$temperature[bdd$temperature == 85.0] <- NA 
+bdd$sensorId <- as.character(bdd$sensorId)
+bdd$sensorId[bdd$sensorId == "28-00000ac82be5"] <- "SNK_Mak_bib_26"
+bdd$sensorId[bdd$sensorId == "28-00000ac82d99"] <- "SNK_Mak_cage_21"
+bdd$sensorId[bdd$sensorId == "28-00000ac8bafe"] <- "SNF_bib_26"
+bdd$sensorId[bdd$sensorId == "28-00000ac8a098"] <- "SNF_cage_21"
+bdd$sensorId[bdd$sensorId == "28-00000ac89b2d"] <- "Ext1"
+bdd$sensorId[bdd$sensorId == "28-00000ac8aa0f"] <- "Ext2"
+bdd$sensorId[bdd$sensorId == "28-00000ac85b0c"] <- "SNK_Kob_bib_26"
+bdd$sensorId[bdd$sensorId == "28-00000ac84a81"] <- "SNK_Kob_cage_21"
+tempRange <- list(
+  c(24, 28), c(19, 23), c(24, 28), c(19, 23), 
+  c(15, 30), c(15, 30), c(24, 28), c(19, 23)
+)
+sensNames <- c("SNK_Mak_bib_26", "SNK_Mak_cage_21", 
+               "SNF_bib_26", "SNF_cage_21", "Ext1", 
+               "Ext2", "SNK_Kob_bib_26", "SNK_Kob_cage_21")
+```
+
+overview
+===================================== 
+
+### overview
+
+```{r, fig.width = 20, fig.height = 14}
+bddY <- tail(bdd, numSensors*60*7*4*24)
+par(mfrow = c(2, 4))
+gg01 <- lapply(seq_along(sensNames), function(i){
+  bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+  aggHour <- aggregate(bddY_sens$temperature ~ 
+    format(as.POSIXct(bddY_sens$dateTime),
+    "%y-%m-%d"), data = bddY_sens, mean, na.rm = TRUE)
+  names(aggHour) <- c("dateTime", "temperature")
+  aggHourMin <- aggregate(bddY_sens$temperature ~ 
+    format(as.POSIXct(bddY_sens$dateTime),
+    "%y-%m-%d"), data = bddY_sens, min, na.rm = TRUE)
+  names(aggHourMin) <- c("dateTime", "temperature")
+  aggHourMax <- aggregate(bddY_sens$temperature ~ 
+    format(as.POSIXct(bddY_sens$dateTime),
+    "%y-%m-%d"), data = bddY_sens, max, na.rm = TRUE)
+  names(aggHourMax) <- c("dateTime", "temperature")
+  
+  p <- ggplot() 
+  p <- p + geom_line(data = aggHour, aes(
+    x = dateTime, y = temperature, 
+    group = 1), size = 1)
+  p <- p + geom_line(data = aggHourMin, aes(
+    x = dateTime, y = temperature, 
+    group = 1), size = 1, col = 4)
+  p <- p + geom_line(data = aggHourMax, aes(
+    x = dateTime, y = temperature, 
+    group = 1), size = 1, col = 2)
+  p <- p + scale_y_continuous(limits = tempRange[[i]]) + 
+    labs(x = "", y = "Temperature", 
+      title = sensNames[i])
+  p <- p + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  return(p)
+})
+grid.arrange(gg01[[1]], gg01[[2]], gg01[[3]], gg01[[4]], 
+             gg01[[5]], gg01[[6]], gg01[[7]], gg01[[8]], ncol = 4)
+```
+
+
+SNK_Mak_bib_26
+=====================================
+
+```{r}
+i <- 1
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
+
+SNK_Mak_cage_21
+=====================================
+
+```{r}
+i <- 2
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
+SNF_bib_26
+=====================================
+
+```{r}
+i <- 3
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
+SNF_cage_21
+=====================================
+
+```{r}
+i <- 4
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
+Ext1
+=====================================
+
+```{r}
+i <- 5
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
+Ext2
+=====================================
+
+```{r}
+i <- 6
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
+SNK_Kob_bib_26
+=====================================
+
+```{r}
+i <- 7
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
+SNK_Kob_cage_21
+=====================================
+
+```{r}
+i <- 8
+bddY_sens <- bddY[bddY$sensorId == sensNames[i],]
+aggHour <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, mean, na.rm = TRUE)
+names(aggHour) <- c("dateTime", "temperature")
+aggHourMin <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, min, na.rm = TRUE)
+names(aggHourMin) <- c("dateTime", "temperature")
+aggHourMax <- aggregate(bddY_sens$temperature ~ 
+  format(as.POSIXct(bddY_sens$dateTime),
+  "%Y-%m-%d %H"), data = bddY_sens, max, na.rm = TRUE)
+names(aggHourMax) <- c("dateTime", "temperature")
+sumStats <- summary(bddY_sens$temperature)
+```
+
+Row
+-------------------------------------
+
+### Min.
+```{r}
+valueBox(round(sumStats[1], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[1] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### 1st Qu.
+```{r}
+valueBox(round(sumStats[2], digits = 2), 
+         icon = "fa-thermometer-quarter", 
+         color = ifelse(sumStats[2] < tempRange[[i]][1], "warning", "primary"))
+```
+
+### Median
+```{r}
+valueBox(round(sumStats[3], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[3] < tempRange[[i]][1] | sumStats[3] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### Mean
+```{r}
+valueBox(round(sumStats[4], digits = 2), 
+         icon = "fa-thermometer-half", 
+         color = ifelse(
+           sumStats[4] < tempRange[[i]][1] | sumStats[4] > tempRange[[i]][2], 
+           "warning", "primary"))
+```
+
+### 3rd Qu.
+```{r}
+valueBox(round(sumStats[5], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[5] > tempRange[[i]][2], "warning", "primary"))
+```
+
+### Max.
+```{r}
+valueBox(round(sumStats[6], digits = 2), 
+         icon = "fa-thermometer-three-quarters", 
+         color = ifelse(sumStats[6] > tempRange[[i]][2], "warning", "primary"))
+```
+
+Row
+-------------------------------------
+
+### boxplot with breaks every hour
+
+```{r}
+p <- ggplot(data = bddY_sens, aes(x = format(as.POSIXct(bddY_sens$dateTime), 
+  "%y-%m-%d"), y = temperature))
+p <- p + geom_boxplot(outlier.colour="red")
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p <- p + scale_y_continuous(limits = c(
+	min(bddY_sens$temperature, na.rm = TRUE), 
+	max(bddY_sens$temperature, na.rm = TRUE))) + 
+  labs(x = "", y = "Temperature", 
+    title = sensNames[i])
+p
+```
+
